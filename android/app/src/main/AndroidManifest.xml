@@ -37,6 +37,11 @@
             </intent-filter>
         </activity>
 
+        <!-- Модуль сканера Google скачивается вместе с установкой приложения -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode_ui" />
+
         <!-- Экран сканера QR из ZXing: по умолчанию он только альбомный -->
         <activity
             android:name="com.journeyapps.barcodescanner.CaptureActivity"

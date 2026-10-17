@@ -1,6 +1,5 @@
 package app.unlock.ui
 
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -61,8 +60,6 @@ import app.unlock.core.ProfileStore
 import app.unlock.core.ServerNode
 import app.unlock.core.XrayCore
 import app.unlock.vpn.UnlockVpnService
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -203,13 +200,13 @@ fun AddSheet(onAdd: suspend (String) -> Unit, onAdded: () -> Unit, onDismiss: ()
         }
     }
 
-    // Отсканированную ссылку сразу добавляем
-    val scanner = rememberLauncherForActivityResult(ScanContract()) { result ->
-        result.contents?.takeIf { it.isNotBlank() }?.let { scanned ->
-            input = scanned
-            submit(scanned)
-        }
+    // Распознанную ссылку сразу добавляем
+    val onScanned: (String) -> Unit = { scanned ->
+        input = scanned
+        submit(scanned)
     }
+    val scanCamera = rememberQrScanner(onScanned)
+    val scanImage = rememberQrFromImage(onScanned) { error = it }
 
     UnlockSheet(onDismiss) {
         Column(
@@ -217,23 +214,24 @@ fun AddSheet(onAdd: suspend (String) -> Unit, onAdded: () -> Unit, onDismiss: ()
         ) {
             Text("Добавить подписку", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(16.dp))
-            Button(
-                onClick = {
-                    scanner.launch(
-                        ScanOptions()
-                            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                            .setPrompt("Наведите камеру на QR-код подписки")
-                            .setBeepEnabled(false)
-                            .setOrientationLocked(false),
-                    )
-                },
-                enabled = !loading,
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-            ) {
-                QrGlyph(Modifier.size(20.dp))
-                Spacer(Modifier.width(10.dp))
-                Text("Сканировать QR-код")
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
+                    onClick = scanCamera,
+                    enabled = !loading,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.weight(1.4f).height(52.dp),
+                ) {
+                    QrGlyph(Modifier.size(20.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text("Сканировать QR")
+                }
+                OutlinedButton(
+                    onClick = scanImage,
+                    enabled = !loading,
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, UnlockColors.Outline),
+                    modifier = Modifier.weight(1f).height(52.dp),
+                ) { Text("Из галереи") }
             }
             Spacer(Modifier.height(16.dp))
             Text("ИЛИ ВСТАВЬТЕ ССЫЛКУ", style = SectionLabel)

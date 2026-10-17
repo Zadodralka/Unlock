@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.unlock.vpn.VpnState
 
@@ -41,7 +42,14 @@ import app.unlock.vpn.VpnState
  * вокруг расходятся кольца: быстро при подключении, спокойно когда подключено.
  */
 @Composable
-fun ConnectButton(status: VpnState.Status, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun ConnectButton(
+    status: VpnState.Status,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** Диаметр всей области с кольцами; сама кнопка — ~60% от него. */
+    size: Dp = 260.dp,
+) {
+    val buttonSize = size * 0.6f
     val busy = status == VpnState.Status.CONNECTING || status == VpnState.Status.DISCONNECTING
     val target = when {
         busy -> UnlockColors.Warning
@@ -65,10 +73,10 @@ fun ConnectButton(status: VpnState.Status, onClick: () -> Unit, modifier: Modifi
     )
     val haptic = LocalHapticFeedback.current
 
-    Box(modifier.size(260.dp), contentAlignment = Alignment.Center) {
+    Box(modifier.size(size), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val outer = size.minDimension / 2
-            val core = 80.dp.toPx()
+            val core = buttonSize.toPx() / 2
 
             // Мягкое свечение под кнопкой
             drawCircle(
@@ -98,7 +106,7 @@ fun ConnectButton(status: VpnState.Status, onClick: () -> Unit, modifier: Modifi
 
         Box(
             Modifier
-                .size(160.dp)
+                .size(buttonSize)
                 .scale(scale)
                 .shadow(28.dp, CircleShape, ambientColor = color, spotColor = color)
                 .background(
@@ -113,9 +121,9 @@ fun ConnectButton(status: VpnState.Status, onClick: () -> Unit, modifier: Modifi
             contentAlignment = Alignment.Center,
         ) {
             if (busy) {
-                CircularProgressIndicator(color = Color.White, strokeWidth = 3.dp, modifier = Modifier.size(56.dp))
+                CircularProgressIndicator(color = Color.White, strokeWidth = 3.dp, modifier = Modifier.size(buttonSize * 0.35f))
             } else {
-                PowerIcon(Modifier.size(60.dp))
+                PowerIcon(Modifier.size(buttonSize * 0.37f))
             }
         }
     }

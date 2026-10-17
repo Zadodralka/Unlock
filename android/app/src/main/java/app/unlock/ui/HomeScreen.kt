@@ -19,8 +19,12 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,10 +36,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
@@ -129,7 +131,6 @@ fun HomeScreen(
             Column(
                 Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
                     .statusBarsPadding()
                     .navigationBarsPadding()
                     .padding(horizontal = 20.dp),
@@ -168,10 +169,18 @@ fun HomeScreen(
                     }
                 }
 
-                Spacer(Modifier.height(12.dp))
-                ConnectButton(vpnState.status, onToggle)
-                StatusBlock(vpnState)
-                Spacer(Modifier.height(24.dp))
+                // Кнопка занимает всё свободное место между карточками и плашками
+                BoxWithConstraints(
+                    Modifier.weight(1f).fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val statusHeight = 64.dp
+                    val size = minOf(maxWidth, maxHeight - statusHeight, 260.dp).coerceAtLeast(120.dp)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        ConnectButton(vpnState.status, onToggle, size = size)
+                        StatusBlock(vpnState)
+                    }
+                }
 
                 StatsRow(
                     ping = selected?.let { store.pings[it.id] },
@@ -179,7 +188,7 @@ fun HomeScreen(
                     connected = vpnState.status == VpnState.Status.CONNECTED,
                     onPing = { selected?.let { scope.launch { store.ping(it) } } },
                 )
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(12.dp))
             }
 
             SnackbarHost(
@@ -257,7 +266,10 @@ private fun RoundIconButton(onClick: () -> Unit, content: @Composable () -> Unit
     }
 }
 
-/** Провайдер, сколько дней осталось, круглая кнопка обновления, сообщение панели мелко. */
+/**
+ * Подписка: провайдер и срок, кнопка обновления, мини-плашки «Трафик /
+ * Локаций / Обновлено», сообщение из панели мелким шрифтом.
+ */
 @Composable
 private fun SubscriptionCard(
     subscription: Subscription,
@@ -268,6 +280,9 @@ private fun SubscriptionCard(
     val context = LocalContext.current
     var menu by remember { mutableStateOf(false) }
     val usage = subscription.usage
+    val title = subscription.title.ifBlank {
+        subscription.url?.let { Uri.parse(it).host } ?: "Подписка"
+    }
 
     Surface(
         shape = RoundedCornerShape(22.dp),
@@ -276,13 +291,15 @@ private fun SubscriptionCard(
         border = BorderStroke(1.dp, UnlockColors.Outline),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(start = 16.dp, end = 10.dp, top = 14.dp, bottom = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("ПОДПИСКА", style = SectionLabel)
-                    Spacer(Modifier.height(2.dp))
                     Text(
-                        subscription.title, fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
+                        title, color = UnlockColors.TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        expiryLine(usage?.expire ?: 0), color = UnlockColors.TextSecondary, fontSize = 12.sp,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
                 }
@@ -295,7 +312,7 @@ private fun SubscriptionCard(
                         onClick = { menu = true },
                         shape = CircleShape,
                         color = Color.Transparent,
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(32.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(Icons.Default.MoreVert, "Меню", tint = UnlockColors.TextSecondary)
@@ -325,33 +342,34 @@ private fun SubscriptionCard(
                 }
             }
 
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.padding(end = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val traffic = when {
+                    usage == null -> "—"
+                    usage.total > 0 -> "${formatBytes(usage.used)} / ${formatBytes(usage.total)}"
+                    else -> "${formatBytes(usage.used)} / ∞"
+                }
+                MiniStat("ТРАФИК", traffic, Modifier.weight(1.5f))
+                MiniStat("ЛОКАЦИЙ", subscription.servers.size.toString(), Modifier.weight(1f))
+                MiniStat("ОБНОВЛЕНО", updatedAgo(subscription.updatedAt), Modifier.weight(1.2f))
+            }
+
             if (usage != null && usage.total > 0) {
-                Spacer(Modifier.height(12.dp))
                 val fraction = (usage.used.toFloat() / usage.total).coerceIn(0f, 1f)
+                Spacer(Modifier.height(10.dp))
                 LinearProgressIndicator(
                     progress = { fraction },
-                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
+                    modifier = Modifier.fillMaxWidth().padding(end = 6.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
                     color = if (fraction > 0.9f) UnlockColors.Danger else UnlockColors.Primary,
                     trackColor = UnlockColors.SurfaceHigh,
                 )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "${formatBytes(usage.used)} из ${formatBytes(usage.total)}",
-                    color = UnlockColors.TextSecondary, fontSize = 12.sp,
-                )
             }
 
-            // Сообщение из Remnawave (заголовок announce) — мелко, одной-двумя строками
+            // Сообщение из Remnawave (заголовок announce) — мелко, до двух строк
             subscription.announce?.let {
                 Spacer(Modifier.height(10.dp))
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .background(UnlockColors.SurfaceHigh, RoundedCornerShape(10.dp))
-                        .padding(horizontal = 10.dp, vertical = 7.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(Modifier.size(6.dp).background(UnlockColors.Primary, CircleShape))
+                Row(Modifier.padding(end = 6.dp), verticalAlignment = Alignment.Top) {
+                    Box(Modifier.padding(top = 5.dp).size(6.dp).background(UnlockColors.Primary, CircleShape))
                     Spacer(Modifier.width(8.dp))
                     Text(
                         it, fontSize = 12.sp, lineHeight = 16.sp, color = UnlockColors.TextSecondary,
@@ -360,6 +378,40 @@ private fun SubscriptionCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MiniStat(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .background(UnlockColors.SurfaceHigh, RoundedCornerShape(12.dp))
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+    ) {
+        Text(label, style = SectionLabel, fontSize = 10.sp, maxLines = 1)
+        Text(
+            value, color = UnlockColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+            maxLines = 1, overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** «Активна до 25 ноября 2026» / «Истекла 3 ноября» / «Бессрочная». */
+private fun expiryLine(expire: Long): String {
+    if (expire <= 0) return "Бессрочная подписка"
+    val date = java.text.DateFormat.getDateInstance(java.text.DateFormat.LONG).format(java.util.Date(expire * 1000))
+    return if (expire * 1000 < System.currentTimeMillis()) "Истекла $date" else "Активна до $date"
+}
+
+/** «только что», «5 мин назад», «3 ч назад», «2 дн назад». */
+private fun updatedAgo(time: Long): String {
+    if (time <= 0) return "—"
+    val minutes = TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis() - time)
+    return when {
+        minutes < 1 -> "только что"
+        minutes < 60 -> "$minutes мин назад"
+        minutes < 60 * 24 -> "${minutes / 60} ч назад"
+        else -> "${minutes / (60 * 24)} дн назад"
     }
 }
 
@@ -432,8 +484,8 @@ private fun LocationCard(server: ServerNode, onClick: () -> Unit) {
         border = BorderStroke(1.dp, UnlockColors.Outline),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            FlagBadge(title, 46.dp)
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+            FlagBadge(title, 42.dp)
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("ЛОКАЦИЯ", style = SectionLabel)
@@ -538,60 +590,56 @@ private fun StatsRow(ping: Int?, pinging: Boolean, connected: Boolean, onPing: (
         }
     }
 
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        StatTile(
-            label = "ПИНГ",
-            value = when {
-                pinging && ping == null -> "…"
-                ping == null -> "—"
-                ping < 0 -> "нет ответа"
-                else -> "$ping мс"
-            },
-            valueColor = ping?.let(::pingColor) ?: UnlockColors.TextPrimary,
-            onClick = onPing,
-            modifier = Modifier.weight(1f),
-        )
-        StatTile(
-            label = "↓ ЗАГРУЗКА",
-            value = if (connected) formatSpeed(down) else "—",
-            modifier = Modifier.weight(1f),
-        )
-        StatTile(
-            label = "↑ ОТДАЧА",
-            value = if (connected) formatSpeed(up) else "—",
-            modifier = Modifier.weight(1f),
-        )
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = UnlockColors.Surface,
+        border = BorderStroke(1.dp, UnlockColors.Outline),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(Modifier.height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
+            StatCell(
+                label = "ПИНГ",
+                value = when {
+                    pinging && ping == null -> "…"
+                    ping == null -> "—"
+                    ping < 0 -> "нет"
+                    else -> "$ping мс"
+                },
+                valueColor = ping?.let(::pingColor) ?: UnlockColors.TextPrimary,
+                onClick = onPing,
+                modifier = Modifier.weight(1f),
+            )
+            StatDivider()
+            StatCell("↓ ЗАГРУЗКА", if (connected) formatSpeed(down) else "—", Modifier.weight(1f))
+            StatDivider()
+            StatCell("↑ ОТДАЧА", if (connected) formatSpeed(up) else "—", Modifier.weight(1f))
+        }
     }
 }
 
 @Composable
-private fun StatTile(
+private fun StatDivider() {
+    Box(Modifier.fillMaxHeight().padding(vertical = 10.dp).width(1.dp).background(UnlockColors.Outline))
+}
+
+@Composable
+private fun StatCell(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
     valueColor: Color = UnlockColors.TextPrimary,
     onClick: (() -> Unit)? = null,
 ) {
-    val content: @Composable () -> Unit = {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 12.dp)) {
-            Text(label, style = SectionLabel, fontSize = 11.sp, maxLines = 1)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                value, color = valueColor, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                maxLines = 1, overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-    val shape = RoundedCornerShape(18.dp)
-    if (onClick != null) {
-        Surface(
-            onClick = onClick, shape = shape, color = UnlockColors.Surface,
-            border = BorderStroke(1.dp, UnlockColors.Outline), modifier = modifier, content = content,
-        )
-    } else {
-        Surface(
-            shape = shape, color = UnlockColors.Surface,
-            border = BorderStroke(1.dp, UnlockColors.Outline), modifier = modifier, content = content,
+    Column(
+        modifier
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(label, style = SectionLabel, fontSize = 10.sp, maxLines = 1)
+        Text(
+            value, color = valueColor, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+            maxLines = 1, overflow = TextOverflow.Ellipsis,
         )
     }
 }
