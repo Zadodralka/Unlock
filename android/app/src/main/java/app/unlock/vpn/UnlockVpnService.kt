@@ -122,6 +122,7 @@ class UnlockVpnService : VpnService() {
         )
         val notification = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
+            .setColor(getColor(R.color.brand))
             .setContentTitle("Unlock подключён")
             .setContentText(serverName ?: "VPN")
             .setContentIntent(openAppIntent())
