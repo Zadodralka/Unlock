@@ -289,7 +289,7 @@ fun AddSheet(onAdd: suspend (String) -> Unit, onAdded: () -> Unit, onDismiss: ()
 
 /** О приложении, идентификатор устройства и журнал ядра для отладки. */
 @Composable
-fun SettingsSheet(onDismiss: () -> Unit, onMessage: (String) -> Unit) {
+fun SettingsSheet(onDismiss: () -> Unit, onMessage: (String) -> Unit, onCheckUpdates: () -> Unit) {
     val context = LocalContext.current
     var xrayVersion by remember { mutableStateOf("…") }
     var log by remember { mutableStateOf("") }
@@ -317,7 +317,7 @@ fun SettingsSheet(onDismiss: () -> Unit, onMessage: (String) -> Unit) {
             Text("Настройки", style = MaterialTheme.typography.titleLarge)
 
             InfoCard {
-                InfoRow("Версия приложения", BuildConfig.VERSION_NAME)
+                InfoRow("Версия приложения", BuildConfig.VERSION_NAME, actionLabel = "Проверить", onAction = onCheckUpdates)
                 InfoRow("Ядро Xray", xrayVersion)
                 InfoRow("ID устройства", hwid.take(8) + "…", actionLabel = "Копировать") {
                     copyToClipboard(context, hwid)

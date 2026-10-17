@@ -36,6 +36,18 @@ APK собирает GitHub Actions при каждом изменении в `a
 
 Все сборки подписаны одним ключом, поэтому новая версия ставится поверх старой без удаления.
 
+## Обновления
+
+Каждая сборка публикуется в [Releases](https://github.com/Zadodralka/Unlock/releases) как
+`android-v0.2.N`: `Unlockless.apk` и `version.json`. Приложение при запуске читает
+`releases/latest/download/version.json` и, если `versionCode` больше своего, показывает
+плашку «Доступна версия …» → **Обновить**: APK скачивается и открывается системный
+установщик. В первый раз Android попросит разрешить установку из Unlockless.
+Проверить вручную: ⚙︎ → «Версия приложения» → «Проверить».
+
+Свежую версию всегда можно скачать по постоянной ссылке:
+https://github.com/Zadodralka/Unlock/releases/latest/download/Unlockless.apk
+
 ## Как устроено
 
 ```

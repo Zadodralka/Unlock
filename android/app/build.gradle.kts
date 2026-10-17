@@ -4,6 +4,10 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// В CI номер версии растёт с каждой сборкой — по нему приложение понимает,
+// что на GitHub лежит версия новее установленной
+val ciBuild = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()
+
 android {
     namespace = "app.unlock"
     compileSdk = 35
@@ -12,8 +16,8 @@ android {
         applicationId = "app.unlock"
         minSdk = 28
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = ciBuild?.let { 100 + it } ?: 1
+        versionName = ciBuild?.let { "0.2.$it" } ?: "0.2-dev"
 
         // Ядро собрано только под ARM — это все реальные телефоны
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }

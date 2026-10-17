@@ -82,6 +82,8 @@ import app.unlock.R
 import app.unlock.core.ProfileStore
 import app.unlock.core.ServerNode
 import app.unlock.core.Subscription
+import app.unlock.core.Updater
+import java.io.File
 import app.unlock.vpn.VpnState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -108,6 +110,41 @@ fun HomeScreen(
     var showSettings by remember { mutableStateOf(false) }
 
     val showMessage: (String) -> Unit = { message -> scope.launch { snackbar.showSnackbar(message) } }
+
+    // Обновление приложения: проверяем при запуске, качаем по кнопке
+    val context = LocalContext.current
+    var update by remember { mutableStateOf<Updater.Update?>(null) }
+    var updateProgress by remember { mutableStateOf<Float?>(null) }
+    var downloadedApk by remember { mutableStateOf<File?>(null) }
+    LaunchedEffect(Unit) { update = runCatching { Updater.check() }.getOrNull() }
+
+    val installUpdate: () -> Unit = {
+        val target = update
+        if (target != null && updateProgress == null) {
+            scope.launch {
+                runCatching {
+                    val apk = downloadedApk ?: run {
+                        updateProgress = 0f
+                        Updater.download(context, target) { updateProgress = it }.also { downloadedApk = it }
+                    }
+                    if (!Updater.install(context, apk)) {
+                        showMessage("Разрешите установку для Unlockless и нажмите «Обновить» ещё раз")
+                    }
+                }.onFailure { showMessage("Не удалось скачать обновление: ${it.message}") }
+                updateProgress = null
+            }
+        }
+    }
+    val checkUpdates: () -> Unit = {
+        scope.launch {
+            runCatching { Updater.check() }
+                .onSuccess { found ->
+                    update = found
+                    showMessage(if (found != null) "Доступна версия ${found.versionName}" else "У вас последняя версия")
+                }
+                .onFailure { showMessage(it.message ?: "Не удалось проверить обновления") }
+        }
+    }
 
     LaunchedEffect(importError) {
         if (importError != null) {
@@ -138,6 +175,11 @@ fun HomeScreen(
             ) {
                 TopBar(onAdd = { showAdd = true }, onSettings = { showSettings = true })
                 Spacer(Modifier.height(8.dp))
+
+                update?.let {
+                    UpdateBanner(it, updateProgress, installUpdate)
+                    Spacer(Modifier.height(12.dp))
+                }
 
                 if (subscription != null && subscription.url != null) {
                     SubscriptionCard(
@@ -219,7 +261,57 @@ fun HomeScreen(
             onDismiss = { showAdd = false },
         )
     }
-    if (showSettings) SettingsSheet(onDismiss = { showSettings = false }, onMessage = showMessage)
+    if (showSettings) {
+        SettingsSheet(onDismiss = { showSettings = false }, onMessage = showMessage, onCheckUpdates = checkUpdates)
+    }
+}
+
+/** Плашка «Доступна новая версия» с кнопкой и прогрессом скачивания. */
+@Composable
+private fun UpdateBanner(update: Updater.Update, progress: Float?, onUpdate: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = UnlockColors.Primary.copy(alpha = 0.16f),
+        contentColor = UnlockColors.TextPrimary,
+        border = BorderStroke(1.dp, UnlockColors.Primary.copy(alpha = 0.5f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Доступна версия ${update.versionName}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    if (update.notes.isNotBlank()) {
+                        Text(
+                            update.notes, fontSize = 12.sp, color = UnlockColors.TextSecondary,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                Spacer(Modifier.width(10.dp))
+                Button(
+                    onClick = onUpdate,
+                    enabled = progress == null,
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp),
+                    modifier = Modifier.height(36.dp),
+                ) {
+                    Text(if (progress == null) "Обновить" else "Скачивание…", fontSize = 13.sp)
+                }
+            }
+            if (progress != null) {
+                Spacer(Modifier.height(8.dp))
+                val bar = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp))
+                if (progress >= 0f) {
+                    LinearProgressIndicator(
+                        progress = { progress }, modifier = bar,
+                        color = UnlockColors.Primary, trackColor = UnlockColors.SurfaceHigh,
+                    )
+                } else {
+                    LinearProgressIndicator(modifier = bar, color = UnlockColors.Primary, trackColor = UnlockColors.SurfaceHigh)
+                }
+            }
+        }
+    }
 }
 
 @Composable
