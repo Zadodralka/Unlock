@@ -11,7 +11,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -124,3 +131,25 @@ fun copyToClipboard(context: Context, text: String) {
 fun pasteFromClipboard(context: Context): String =
     context.getSystemService(ClipboardManager::class.java)
         ?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
+
+/**
+ * Появление при запуске: элемент выезжает снизу и проявляется. [index] — порядок
+ * в каскаде (каждый следующий чуть позже), [play] — старт после ухода заставки.
+ */
+@Composable
+fun Modifier.entrance(index: Int, play: Boolean, scaleFrom: Float = 1f): Modifier {
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(play) {
+        if (!play) return@LaunchedEffect
+        delay(index * 70L)
+        progress.animateTo(1f, tween(520, easing = FastOutSlowInEasing))
+    }
+    return graphicsLayer {
+        val p = progress.value
+        alpha = p
+        translationY = (1f - p) * 28.dp.toPx()
+        val scale = scaleFrom + (1f - scaleFrom) * p
+        scaleX = scale
+        scaleY = scale
+    }
+}

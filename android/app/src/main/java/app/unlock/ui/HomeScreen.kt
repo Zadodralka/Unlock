@@ -102,6 +102,8 @@ fun HomeScreen(
     onDismissImportError: () -> Unit,
     onToggle: () -> Unit,
     onSelect: (ServerNode) -> Unit,
+    /** Каскадное появление элементов после заставки. */
+    playIntro: Boolean = true,
 ) {
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
@@ -173,16 +175,18 @@ fun HomeScreen(
                     .padding(horizontal = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                TopBar(onAdd = { showAdd = true }, onSettings = { showSettings = true })
+                Box(Modifier.entrance(0, playIntro)) {
+                    TopBar(onAdd = { showAdd = true }, onSettings = { showSettings = true })
+                }
                 Spacer(Modifier.height(8.dp))
 
                 update?.let {
-                    UpdateBanner(it, updateProgress, installUpdate)
+                    Box(Modifier.entrance(1, playIntro)) { UpdateBanner(it, updateProgress, installUpdate) }
                     Spacer(Modifier.height(12.dp))
                 }
 
                 if (subscription != null && subscription.url != null) {
-                    SubscriptionCard(
+                    Box(Modifier.entrance(1, playIntro)) { SubscriptionCard(
                         subscription = subscription,
                         isRefreshing = subscription.id in store.refreshing,
                         onRefresh = {
@@ -193,12 +197,12 @@ fun HomeScreen(
                             }
                         },
                         onDelete = { store.delete(subscription.id) },
-                    )
+                    ) }
                     Spacer(Modifier.height(12.dp))
                 }
 
                 if (selected != null) {
-                    LocationCard(selected) { showServers = true }
+                    Box(Modifier.entrance(2, playIntro)) { LocationCard(selected) { showServers = true } }
                 } else {
                     Button(
                         onClick = { showAdd = true },
@@ -218,18 +222,21 @@ fun HomeScreen(
                 ) {
                     val statusHeight = 64.dp
                     val size = minOf(maxWidth, maxHeight - statusHeight, 260.dp).coerceAtLeast(120.dp)
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        Modifier.entrance(3, playIntro, scaleFrom = 0.7f),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
                         ConnectButton(vpnState.status, onToggle, diameter = size)
                         StatusBlock(vpnState)
                     }
                 }
 
-                StatsRow(
+                Box(Modifier.entrance(4, playIntro)) { StatsRow(
                     ping = selected?.let { store.pings[it.id] },
                     pinging = store.isPinging,
                     connected = vpnState.status == VpnState.Status.CONNECTED,
                     onPing = { selected?.let { scope.launch { store.ping(it) } } },
-                )
+                ) }
                 Spacer(Modifier.height(12.dp))
             }
 

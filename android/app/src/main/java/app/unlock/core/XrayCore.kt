@@ -83,6 +83,21 @@ object XrayCore {
         LibXray.setDNS(controller, BOOTSTRAP_DNS)
     }
 
+    /**
+     * Процесс приложения: один раз настроить DNS ядра. Первое обращение к LibXray
+     * грузит библиотеку и запускает Go-рантайм — это заметно долго, поэтому
+     * вызывается из фонового потока при старте и перед пингом.
+     */
+    private val appProcessReady by lazy {
+        // Приложение исключено из VPN — защищать сокеты не нужно
+        runCatching { setupNetworking { true } }
+        true
+    }
+
+    fun prepareAppProcess() {
+        appProcessReady
+    }
+
     fun resetNetworking() {
         LibXray.resetDNS()
     }

@@ -12,10 +12,9 @@ class UnlockApp : Application() {
         super.onCreate()
         // Application создаётся и в процессе туннеля (:vpn) — там хранилище не нужно
         if (isMainProcess()) {
-            // Приложение исключено из VPN, так что защищать сокеты ядра не нужно —
-            // нужен только рабочий DNS для Go-резолвера (пинг серверов по домену)
-            runCatching { XrayCore.setupNetworking { true } }
             store = ProfileStore(this)
+            // Ядро грузим в фоне: в главном потоке это давало чёрный экран при запуске
+            Thread { XrayCore.prepareAppProcess() }.start()
         }
     }
 

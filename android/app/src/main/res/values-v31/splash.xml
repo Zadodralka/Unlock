@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Unlock.Starting" parent="Theme.SplashScreen.IconBackground">
+        <item name="windowSplashScreenBackground">@color/window_background</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/icon_circle</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/avd_splash</item>
+        <item name="windowSplashScreenAnimationDuration">800</item>
+        <item name="postSplashScreenTheme">@style/Theme.Unlock</item>
+    </style>
+</resources>

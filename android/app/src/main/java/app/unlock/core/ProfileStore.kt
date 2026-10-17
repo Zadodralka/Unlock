@@ -118,6 +118,7 @@ class ProfileStore(private val context: Context) {
     /** Пинг одного сервера — для плашки «Пинг» на главном экране. */
     suspend fun ping(server: ServerNode) {
         val result = withContext(Dispatchers.IO) {
+            XrayCore.prepareAppProcess()
             runCatching { XrayCore.ping(listOf(server.outboundJson)) }.getOrNull()?.firstOrNull()
         }
         pings[server.id] = if (result?.success == true) result.delay else -1
@@ -131,6 +132,7 @@ class ProfileStore(private val context: Context) {
         try {
             for (chunk in subscriptions.flatMap { it.servers }.chunked(5)) {
                 val results = withContext(Dispatchers.IO) {
+                    XrayCore.prepareAppProcess()
                     runCatching { XrayCore.ping(chunk.map { it.outboundJson }) }.getOrDefault(emptyList())
                 }
                 chunk.zip(results).forEach { (server, result) ->

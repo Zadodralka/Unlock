@@ -2,4 +2,5 @@
 <resources>
     <color name="window_background">#050914</color>
     <color name="brand">#7C6CFF</color>
+    <color name="icon_circle">#1B1B1D</color>
 </resources>
