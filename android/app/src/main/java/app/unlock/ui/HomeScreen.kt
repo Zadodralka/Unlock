@@ -317,7 +317,7 @@ private fun UpdateBanner(update: Updater.Update, progress: Float?, onUpdate: () 
 @Composable
 private fun TopBar(onAdd: () -> Unit, onSettings: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        Modifier.fillMaxWidth().padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Логотип из биллинга: щит на тёмном круге
@@ -334,7 +334,7 @@ private fun TopBar(onAdd: () -> Unit, onSettings: () -> Unit) {
         Text(
             "Unlockless",
             color = UnlockColors.TextPrimary,
-            fontSize = 22.sp,
+            fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.3).sp,
             modifier = Modifier.weight(1f),
@@ -352,15 +352,15 @@ private fun RoundIconButton(onClick: () -> Unit, content: @Composable () -> Unit
         shape = CircleShape,
         color = UnlockColors.Surface,
         border = BorderStroke(1.dp, UnlockColors.Outline),
-        modifier = Modifier.size(44.dp),
+        modifier = Modifier.size(40.dp),
     ) {
         Box(contentAlignment = Alignment.Center) { content() }
     }
 }
 
 /**
- * Подписка: провайдер и срок, кнопка обновления, мини-плашки «Трафик /
- * Локаций / Обновлено», сообщение из панели мелким шрифтом.
+ * Подписка, рассчитана на узкий экран: название на всю ширину, ниже срок
+ * с таблеткой дней, затем три мини-плашки и сообщение панели мелко.
  */
 @Composable
 private fun SubscriptionCard(
@@ -372,42 +372,32 @@ private fun SubscriptionCard(
     val context = LocalContext.current
     var menu by remember { mutableStateOf(false) }
     val usage = subscription.usage
-    val title = subscription.title.ifBlank {
-        subscription.url?.let { Uri.parse(it).host } ?: "Подписка"
-    }
+    val title = subscription.title.ifBlank { subscription.url?.let { Uri.parse(it).host } ?: "Подписка" }
 
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(20.dp),
         color = UnlockColors.Surface,
         contentColor = UnlockColors.TextPrimary,
         border = BorderStroke(1.dp, UnlockColors.Outline),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(start = 16.dp, end = 10.dp, top = 14.dp, bottom = 14.dp)) {
+        Column(Modifier.padding(start = 14.dp, end = 8.dp, top = 10.dp, bottom = 12.dp)) {
+            // 1. Название провайдера — вся ширина, справа только две маленькие кнопки
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        title, color = UnlockColors.TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        expiryLine(usage?.expire ?: 0), color = UnlockColors.TextSecondary, fontSize = 12.sp,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Spacer(Modifier.width(8.dp))
-                DaysLeftBadge(usage?.expire ?: 0)
-                Spacer(Modifier.width(8.dp))
+                Text(
+                    title, color = UnlockColors.TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                )
                 RefreshButton(isRefreshing, onRefresh)
                 Box {
                     Surface(
                         onClick = { menu = true },
                         shape = CircleShape,
                         color = Color.Transparent,
-                        modifier = Modifier.size(32.dp),
+                        modifier = Modifier.size(30.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.MoreVert, "Меню", tint = UnlockColors.TextSecondary)
+                            Icon(Icons.Default.MoreVert, "Меню", tint = UnlockColors.TextSecondary, modifier = Modifier.size(20.dp))
                         }
                     }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -434,37 +424,48 @@ private fun SubscriptionCard(
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
-            Row(Modifier.padding(end = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // 2. Срок действия и сколько дней осталось
+            Row(Modifier.padding(end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    expiryLine(usage?.expire ?: 0), color = UnlockColors.TextSecondary, fontSize = 12.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(6.dp))
+                DaysLeftBadge(usage?.expire ?: 0)
+            }
+
+            // 3. Трафик / локации / когда обновлялась
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.padding(end = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 val traffic = when {
                     usage == null -> "—"
                     usage.total > 0 -> "${formatBytes(usage.used)} / ${formatBytes(usage.total)}"
                     else -> "${formatBytes(usage.used)} / ∞"
                 }
-                MiniStat("ТРАФИК", traffic, Modifier.weight(1.5f))
-                MiniStat("ЛОКАЦИЙ", subscription.servers.size.toString(), Modifier.weight(1f))
-                MiniStat("ОБНОВЛЕНО", updatedAgo(subscription.updatedAt), Modifier.weight(1.2f))
+                MiniStat("Трафик", traffic, Modifier.weight(1.6f))
+                MiniStat("Локации", subscription.servers.size.toString(), Modifier.weight(0.9f))
+                MiniStat("Обновлено", updatedAgo(subscription.updatedAt), Modifier.weight(1.2f))
             }
 
             if (usage != null && usage.total > 0) {
                 val fraction = (usage.used.toFloat() / usage.total).coerceIn(0f, 1f)
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
                 LinearProgressIndicator(
                     progress = { fraction },
-                    modifier = Modifier.fillMaxWidth().padding(end = 6.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
+                    modifier = Modifier.fillMaxWidth().padding(end = 6.dp).height(3.dp).clip(RoundedCornerShape(2.dp)),
                     color = if (fraction > 0.9f) UnlockColors.Danger else UnlockColors.Primary,
                     trackColor = UnlockColors.SurfaceHigh,
                 )
             }
 
-            // Сообщение из Remnawave (заголовок announce) — мелко, до двух строк
+            // 4. Сообщение из Remnawave (заголовок announce) — мелко, до двух строк
             subscription.announce?.let {
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
                 Row(Modifier.padding(end = 6.dp), verticalAlignment = Alignment.Top) {
-                    Box(Modifier.padding(top = 5.dp).size(6.dp).background(UnlockColors.Primary, CircleShape))
-                    Spacer(Modifier.width(8.dp))
+                    Box(Modifier.padding(top = 5.dp).size(5.dp).background(UnlockColors.Primary, CircleShape))
+                    Spacer(Modifier.width(6.dp))
                     Text(
-                        it, fontSize = 12.sp, lineHeight = 16.sp, color = UnlockColors.TextSecondary,
+                        it, fontSize = 11.sp, lineHeight = 14.sp, color = UnlockColors.TextSecondary,
                         maxLines = 2, overflow = TextOverflow.Ellipsis,
                     )
                 }
@@ -477,22 +478,26 @@ private fun SubscriptionCard(
 private fun MiniStat(label: String, value: String, modifier: Modifier = Modifier) {
     Column(
         modifier
-            .background(UnlockColors.SurfaceHigh, RoundedCornerShape(12.dp))
-            .padding(horizontal = 10.dp, vertical = 7.dp),
+            .background(UnlockColors.SurfaceHigh, RoundedCornerShape(10.dp))
+            .padding(horizontal = 8.dp, vertical = 5.dp),
     ) {
-        Text(label, style = SectionLabel, fontSize = 10.sp, maxLines = 1)
+        Text(label, color = UnlockColors.TextSecondary, fontSize = 10.sp, lineHeight = 12.sp, maxLines = 1)
         Text(
-            value, color = UnlockColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-            maxLines = 1, overflow = TextOverflow.Ellipsis,
+            value, color = UnlockColors.TextPrimary, fontSize = 12.sp, lineHeight = 15.sp,
+            fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
         )
     }
 }
 
-/** «Активна до 25 ноября 2026» / «Истекла 3 ноября» / «Бессрочная». */
+/** «Активна до 25 ноября» (год — только если не текущий) / «Истекла …» / «Бессрочная». */
 private fun expiryLine(expire: Long): String {
     if (expire <= 0) return "Бессрочная подписка"
-    val date = java.text.DateFormat.getDateInstance(java.text.DateFormat.LONG).format(java.util.Date(expire * 1000))
-    return if (expire * 1000 < System.currentTimeMillis()) "Истекла $date" else "Активна до $date"
+    val millis = expire * 1000
+    val sameYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) ==
+        java.util.Calendar.getInstance().apply { timeInMillis = millis }.get(java.util.Calendar.YEAR)
+    val pattern = if (sameYear) "d MMMM" else "d MMMM yyyy"
+    val date = java.text.SimpleDateFormat(pattern, Locale("ru")).format(java.util.Date(millis))
+    return if (millis < System.currentTimeMillis()) "Истекла $date" else "Активна до $date"
 }
 
 /** «только что», «5 мин назад», «3 ч назад», «2 дн назад». */
@@ -522,10 +527,10 @@ private fun DaysLeftBadge(expire: Long) {
         }
     }
     Text(
-        text, color = color, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+        text, color = color, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
         modifier = Modifier
             .background(color.copy(alpha = 0.14f), RoundedCornerShape(50))
-            .padding(horizontal = 10.dp, vertical = 5.dp),
+            .padding(horizontal = 8.dp, vertical = 3.dp),
     )
 }
 
@@ -552,13 +557,13 @@ private fun RefreshButton(isRefreshing: Boolean, onClick: () -> Unit) {
         shape = CircleShape,
         color = UnlockColors.SurfaceHigh,
         border = BorderStroke(1.dp, UnlockColors.Outline),
-        modifier = Modifier.size(36.dp),
+        modifier = Modifier.size(30.dp),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 Icons.Default.Refresh, "Обновить подписку",
                 tint = UnlockColors.TextPrimary,
-                modifier = Modifier.size(20.dp).rotate(if (isRefreshing) angle else 0f),
+                modifier = Modifier.size(17.dp).rotate(if (isRefreshing) angle else 0f),
             )
         }
     }
@@ -683,14 +688,14 @@ private fun StatsRow(ping: Int?, pinging: Boolean, connected: Boolean, onPing: (
     }
 
     Surface(
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(50),
         color = UnlockColors.Surface,
         border = BorderStroke(1.dp, UnlockColors.Outline),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(Modifier.height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.height(IntrinsicSize.Min).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             StatCell(
-                label = "ПИНГ",
+                label = "Пинг",
                 value = when {
                     pinging && ping == null -> "…"
                     ping == null -> "—"
@@ -702,16 +707,16 @@ private fun StatsRow(ping: Int?, pinging: Boolean, connected: Boolean, onPing: (
                 modifier = Modifier.weight(1f),
             )
             StatDivider()
-            StatCell("↓ ЗАГРУЗКА", if (connected) formatSpeed(down) else "—", Modifier.weight(1f))
+            StatCell("↓", if (connected) formatSpeed(down) else "—", Modifier.weight(1f))
             StatDivider()
-            StatCell("↑ ОТДАЧА", if (connected) formatSpeed(up) else "—", Modifier.weight(1f))
+            StatCell("↑", if (connected) formatSpeed(up) else "—", Modifier.weight(1f))
         }
     }
 }
 
 @Composable
 private fun StatDivider() {
-    Box(Modifier.fillMaxHeight().padding(vertical = 10.dp).width(1.dp).background(UnlockColors.Outline))
+    Box(Modifier.fillMaxHeight().padding(vertical = 8.dp).width(1.dp).background(UnlockColors.Outline))
 }
 
 @Composable
@@ -722,15 +727,17 @@ private fun StatCell(
     valueColor: Color = UnlockColors.TextPrimary,
     onClick: (() -> Unit)? = null,
 ) {
-    Column(
+    Row(
         modifier
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .padding(vertical = 7.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = SectionLabel, fontSize = 10.sp, maxLines = 1)
+        Text(label, color = UnlockColors.TextSecondary, fontSize = 10.sp, maxLines = 1)
+        Spacer(Modifier.width(4.dp))
         Text(
-            value, color = valueColor, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+            value, color = valueColor, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
             maxLines = 1, overflow = TextOverflow.Ellipsis,
         )
     }
