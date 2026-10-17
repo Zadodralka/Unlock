@@ -81,4 +81,6 @@ dependencies {
     // и для распознавания QR с картинки из галереи
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    // ZXing тянет старый androidx.fragment — поднимаем (нужен для Activity Result API)
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
 }
