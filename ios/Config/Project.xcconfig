@@ -1,0 +1,11 @@
+// Общие настройки сборки. Свои значения (Team ID и bundle id) удобнее
+// положить в Config/Local.xcconfig — он в .gitignore и подключается ниже.
+// Пример: cp Config/Local.xcconfig.example Config/Local.xcconfig
+
+DEVELOPMENT_TEAM =
+APP_BUNDLE_ID = com.example.unlock
+
+#include? "Local.xcconfig"
+
+// App Group нужен, чтобы приложение и туннель видели общие файлы.
+APP_GROUP_ID = group.$(APP_BUNDLE_ID)

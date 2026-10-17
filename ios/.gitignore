@@ -1,0 +1,10 @@
+# Генерируется XcodeGen из project.yml
+*.xcodeproj/
+# Собирается scripts/build-libxray.sh
+Frameworks/LibXray.xcframework/
+build/
+# Личные настройки подписи (Team ID, bundle id)
+Config/Local.xcconfig
+DerivedData/
+xcuserdata/
+.DS_Store
