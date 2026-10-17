@@ -3,7 +3,7 @@
 // Пример: cp Config/Local.xcconfig.example Config/Local.xcconfig
 
 DEVELOPMENT_TEAM =
-APP_BUNDLE_ID = com.example.vpnclient
+APP_BUNDLE_ID = com.example.unlock
 
 #include? "Local.xcconfig"
 

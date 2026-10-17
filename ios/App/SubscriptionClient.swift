@@ -35,7 +35,7 @@ enum SubscriptionClient {
         var request = URLRequest(url: url, timeoutInterval: 20)
         request.cachePolicy = .reloadIgnoringLocalCacheData
         let device = await DeviceInfo.current()
-        request.setValue("VPNClient/\(DeviceInfo.appVersion)", forHTTPHeaderField: "User-Agent")
+        request.setValue("Unlock/\(DeviceInfo.appVersion)", forHTTPHeaderField: "User-Agent")
         request.setValue(device.hwid, forHTTPHeaderField: "x-hwid")
         request.setValue("iOS", forHTTPHeaderField: "x-device-os")
         request.setValue(device.osVersion, forHTTPHeaderField: "x-ver-os")

@@ -35,7 +35,7 @@ struct HomeView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("VPN Client")
+            .navigationTitle("Unlock")
             .refreshable {
                 for subscription in store.subscriptions where subscription.url != nil {
                     do { try await store.refresh(subscription.id) } catch { refreshError = error.localizedDescription }

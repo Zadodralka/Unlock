@@ -47,7 +47,7 @@ jobs:
       # Без подписи: проверяем, что приложение и туннель компилируются и линкуются
       - name: Build (unsigned)
         run: |
-          xcodebuild -project VPNClient.xcodeproj -scheme VPNClient \
+          xcodebuild -project Unlock.xcodeproj -scheme Unlock \
             -configuration Debug -destination 'generic/platform=iOS' \
             -derivedDataPath build/DerivedData \
             CODE_SIGNING_ALLOWED=NO build | tail -n 200

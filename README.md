@@ -1,6 +1,6 @@
-# VPN Client
+# Unlock
 
-Клиент для VPN-подписок в духе Happ на ядре [Xray-core](https://github.com/XTLS/Xray-core).
+VPN-клиент для подписок в духе Happ на ядре [Xray-core](https://github.com/XTLS/Xray-core).
 
 | Платформа | Папка | Статус |
 |---|---|---|

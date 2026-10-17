@@ -73,7 +73,7 @@ final class VPNController: ObservableObject {
         proto.providerBundleIdentifier = (Bundle.main.bundleIdentifier ?? "") + ".tunnel"
         proto.serverAddress = serverAddress
         manager.protocolConfiguration = proto
-        manager.localizedDescription = "VPN Client"
+        manager.localizedDescription = "Unlock"
         manager.isEnabled = true
 
         try await manager.saveToPreferences()

@@ -1,6 +1,6 @@
 # Проект Xcode генерируется командой `xcodegen generate` из этого файла.
 # Bundle id и Team ID задаются в Config/Project.xcconfig / Config/Local.xcconfig.
-name: VPNClient
+name: Unlock
 
 options:
   deploymentTarget:
@@ -22,7 +22,7 @@ settings:
     OTHER_LDFLAGS: ["$(inherited)", "-lresolv"]
 
 targets:
-  VPNClient:
+  Unlock:
     type: application
     platform: iOS
     scheme: {}
@@ -36,18 +36,18 @@ targets:
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: VPN Client
+        CFBundleDisplayName: Unlock
         AppGroupID: $(APP_GROUP_ID)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIRequiresFullScreen: true
         ITSAppUsesNonExemptEncryption: false
-        # vpnclient://add/<ссылка подписки> — импорт по ссылке из бота или сайта
+        # unlock://add/<ссылка подписки> — импорт по ссылке из бота или сайта
         CFBundleURLTypes:
           - CFBundleURLName: $(APP_BUNDLE_ID)
-            CFBundleURLSchemes: [vpnclient]
+            CFBundleURLSchemes: [unlock]
     entitlements:
-      path: App/VPNClient.entitlements
+      path: App/Unlock.entitlements
       properties:
         com.apple.developer.networking.networkextension: [packet-tunnel-provider]
         com.apple.security.application-groups: [$(APP_GROUP_ID)]
