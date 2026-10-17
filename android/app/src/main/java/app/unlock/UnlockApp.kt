@@ -19,5 +19,5 @@ class UnlockApp : Application() {
         }
     }
 
-    private fun isMainProcess(): Boolean = getProcessName() == packageName
+    private fun isMainProcess(): Boolean = Application.getProcessName() == packageName
 }

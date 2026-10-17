@@ -128,7 +128,7 @@ class MainActivity : ComponentActivity() {
         if (data.scheme != "unlock" || data.host != "add") return
         val raw = data.toString().removePrefix("unlock://add/")
         val input = Uri.decode(raw)
-        intent.data = null
+        intent?.data = null
         lifecycleScope.launch {
             runCatching { store.add(input) }.onFailure { importError.value = it.message ?: "Не удалось импортировать" }
         }
