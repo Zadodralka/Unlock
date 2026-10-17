@@ -1,0 +1,9 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.kotlin/
+# Собирается scripts/build-libxray.sh
+app/libs/libXray.aar
+app/libs/libXray-sources.jar
