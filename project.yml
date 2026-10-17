@@ -40,6 +40,7 @@ targets:
         AppGroupID: $(APP_GROUP_ID)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIRequiresFullScreen: true
         ITSAppUsesNonExemptEncryption: false
         # vpnclient://add/<ссылка подписки> — импорт по ссылке из бота или сайта
         CFBundleURLTypes:

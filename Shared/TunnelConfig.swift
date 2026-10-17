@@ -24,6 +24,24 @@ enum TunnelConfig {
         var proxy = outbound
         proxy["tag"] = "proxy"
 
+        let tunInbound: [String: Any] = [
+            "tag": "tun",
+            "protocol": "tun",
+            "port": 0,
+            "settings": ["name": "utun", "mtu": mtu] as [String: Any],
+            "sniffing": ["enabled": true, "destOverride": ["http", "tls"]] as [String: Any],
+        ]
+        let rules: [[String: Any]] = [
+            ["type": "field", "inboundTag": ["tun"], "port": "53", "outboundTag": "dns-out"],
+            ["type": "field", "ip": excludedIPv4.map { cidr($0.0, $0.1) }, "outboundTag": "direct"],
+        ]
+        // Первый outbound — маршрут по умолчанию
+        let outbounds: [[String: Any]] = [
+            proxy,
+            ["tag": "direct", "protocol": "freedom"],
+            ["tag": "dns-out", "protocol": "dns"],
+        ]
+
         return [
             "log": ["loglevel": "warning", "access": "none", "error": logPath],
             // Xray-core берёт дескриптор utun из NetworkExtension из этой переменной
@@ -32,27 +50,10 @@ enum TunnelConfig {
                 "servers": dnsServers,
                 // Без AAAA приложения не пытаются ходить по IPv6, который в туннель не заведён
                 "queryStrategy": "UseIPv4",
-            ],
-            "inbounds": [[
-                "tag": "tun",
-                "protocol": "tun",
-                "port": 0,
-                "settings": ["name": "utun", "mtu": mtu],
-                "sniffing": ["enabled": true, "destOverride": ["http", "tls"]],
-            ]],
-            // Первый outbound — маршрут по умолчанию
-            "outbounds": [
-                proxy,
-                ["tag": "direct", "protocol": "freedom"],
-                ["tag": "dns-out", "protocol": "dns"],
-            ],
-            "routing": [
-                "domainStrategy": "AsIs",
-                "rules": [
-                    ["type": "field", "inboundTag": ["tun"], "port": "53", "outboundTag": "dns-out"],
-                    ["type": "field", "ip": excludedIPv4.map { cidr($0.0, $0.1) }, "outboundTag": "direct"],
-                ],
-            ],
+            ] as [String: Any],
+            "inbounds": [tunInbound],
+            "outbounds": outbounds,
+            "routing": ["domainStrategy": "AsIs", "rules": rules] as [String: Any],
         ]
     }
 
