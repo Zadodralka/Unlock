@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -214,24 +215,14 @@ fun AddSheet(onAdd: suspend (String) -> Unit, onAdded: () -> Unit, onDismiss: ()
         ) {
             Text("Добавить подписку", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(16.dp))
+            // Две одинаковые плитки: значок сверху, короткая подпись снизу
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(
-                    onClick = scanCamera,
-                    enabled = !loading,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.weight(1.4f).height(52.dp),
-                ) {
-                    QrGlyph(Modifier.size(20.dp))
-                    Spacer(Modifier.width(10.dp))
-                    Text("Сканировать QR")
+                ActionTile("QR-код", enabled = !loading, onClick = scanCamera, modifier = Modifier.weight(1f)) {
+                    QrGlyph(Modifier.size(26.dp), color = UnlockColors.Primary)
                 }
-                OutlinedButton(
-                    onClick = scanImage,
-                    enabled = !loading,
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, UnlockColors.Outline),
-                    modifier = Modifier.weight(1f).height(52.dp),
-                ) { Text("Из галереи") }
+                ActionTile("Из галереи", enabled = !loading, onClick = scanImage, modifier = Modifier.weight(1f)) {
+                    GalleryGlyph(Modifier.size(26.dp), color = UnlockColors.Primary)
+                }
             }
             Spacer(Modifier.height(16.dp))
             Text("ИЛИ ВСТАВЬТЕ ССЫЛКУ", style = SectionLabel)
@@ -268,21 +259,56 @@ fun AddSheet(onAdd: suspend (String) -> Unit, onAdded: () -> Unit, onDismiss: ()
                     enabled = !loading,
                     shape = RoundedCornerShape(16.dp),
                     border = BorderStroke(1.dp, UnlockColors.Outline),
+                    contentPadding = PaddingValues(horizontal = 8.dp),
                     modifier = Modifier.weight(1f).height(52.dp),
-                ) { Text("Вставить") }
+                ) { Text("Вставить", maxLines = 1, fontSize = 15.sp) }
                 Button(
                     onClick = { submit(input) },
                     enabled = input.isNotBlank() && !loading,
                     shape = RoundedCornerShape(16.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp),
                     modifier = Modifier.weight(1f).height(52.dp),
                 ) {
                     if (loading) {
                         CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                     } else {
-                        Text("Добавить")
+                        Text("Добавить", maxLines = 1, fontSize = 15.sp)
                     }
                 }
             }
+        }
+    }
+}
+
+/** Квадратная плитка действия: значок и подпись, обе плитки ряда одного размера. */
+@Composable
+private fun ActionTile(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: @Composable () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(16.dp),
+        color = UnlockColors.Surface,
+        contentColor = UnlockColors.TextPrimary,
+        border = BorderStroke(1.dp, UnlockColors.Outline),
+        modifier = modifier.height(84.dp),
+    ) {
+        Column(
+            Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Box(
+                Modifier.size(40.dp).background(UnlockColors.Primary.copy(alpha = 0.15f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) { icon() }
+            Spacer(Modifier.height(6.dp))
+            Text(label, fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, maxLines = 1)
         }
     }
 }

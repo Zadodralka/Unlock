@@ -124,6 +124,33 @@ fun QrGlyph(modifier: Modifier, color: Color = Color.White) {
     }
 }
 
+/** Значок «картинка»: рамка, гора и солнце. */
+@Composable
+fun GalleryGlyph(modifier: Modifier, color: Color = Color.White) {
+    Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        val stroke = w * 0.09f
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(w * 0.08f, h * 0.14f),
+            size = Size(w * 0.84f, h * 0.72f),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.12f),
+            style = Stroke(width = stroke),
+        )
+        drawCircle(color, radius = w * 0.08f, center = Offset(w * 0.68f, h * 0.34f))
+        val mountain = androidx.compose.ui.graphics.Path().apply {
+            moveTo(w * 0.16f, h * 0.78f)
+            lineTo(w * 0.40f, h * 0.48f)
+            lineTo(w * 0.58f, h * 0.68f)
+            lineTo(w * 0.68f, h * 0.58f)
+            lineTo(w * 0.84f, h * 0.78f)
+            close()
+        }
+        drawPath(mountain, color)
+    }
+}
+
 fun copyToClipboard(context: Context, text: String) {
     context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("Unlock", text))
 }
