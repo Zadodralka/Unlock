@@ -47,9 +47,9 @@ fun ConnectButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     /** Диаметр всей области с кольцами; сама кнопка — ~60% от него. */
-    size: Dp = 260.dp,
+    diameter: Dp = 260.dp,
 ) {
-    val buttonSize = size * 0.6f
+    val buttonSize = diameter * 0.6f
     val busy = status == VpnState.Status.CONNECTING || status == VpnState.Status.DISCONNECTING
     val target = when {
         busy -> UnlockColors.Warning
@@ -73,7 +73,7 @@ fun ConnectButton(
     )
     val haptic = LocalHapticFeedback.current
 
-    Box(modifier.size(size), contentAlignment = Alignment.Center) {
+    Box(modifier.size(diameter), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val outer = size.minDimension / 2
             val core = buttonSize.toPx() / 2

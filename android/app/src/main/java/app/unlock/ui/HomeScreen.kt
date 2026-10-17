@@ -177,7 +177,7 @@ fun HomeScreen(
                     val statusHeight = 64.dp
                     val size = minOf(maxWidth, maxHeight - statusHeight, 260.dp).coerceAtLeast(120.dp)
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        ConnectButton(vpnState.status, onToggle, size = size)
+                        ConnectButton(vpnState.status, onToggle, diameter = size)
                         StatusBlock(vpnState)
                     }
                 }
