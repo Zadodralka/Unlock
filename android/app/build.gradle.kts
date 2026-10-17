@@ -54,8 +54,9 @@ android {
     }
 
     packaging {
-        // .so из libXray не сжимаем — так Android грузит их прямо из APK
-        jniLibs.useLegacyPackaging = false
+        // Сжимаем .so ядра: APK втрое меньше (важно для обновлений по сети),
+        // Android распакует их при установке
+        jniLibs.useLegacyPackaging = true
     }
 }
 
