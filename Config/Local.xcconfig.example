@@ -1,0 +1,5 @@
+// Скопируйте в Local.xcconfig и впишите свои значения.
+// Team ID: developer.apple.com -> Account -> Membership details.
+DEVELOPMENT_TEAM = ABCDE12345
+// Должен быть уникальным в рамках вашего аккаунта разработчика.
+APP_BUNDLE_ID = com.yourname.vpnclient
