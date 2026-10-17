@@ -49,7 +49,7 @@ fun ConnectButton(
     /** Диаметр всей области с кольцами; сама кнопка — ~60% от него. */
     diameter: Dp = 260.dp,
 ) {
-    val buttonSize = diameter * 0.6f
+    val buttonSize = diameter * 0.56f
     val busy = status == VpnState.Status.CONNECTING || status == VpnState.Status.DISCONNECTING
     val target = when {
         busy -> UnlockColors.Warning

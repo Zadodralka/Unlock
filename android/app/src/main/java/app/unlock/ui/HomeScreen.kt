@@ -221,7 +221,7 @@ fun HomeScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     val statusHeight = 64.dp
-                    val size = minOf(maxWidth, maxHeight - statusHeight, 260.dp).coerceAtLeast(120.dp)
+                    val size = minOf(maxWidth, maxHeight - statusHeight, 210.dp).coerceAtLeast(110.dp)
                     Column(
                         Modifier.entrance(3, playIntro, scaleFrom = 0.7f),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -395,7 +395,9 @@ private fun SubscriptionCard(
                     title, color = UnlockColors.TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
                 )
+                Spacer(Modifier.width(8.dp))
                 RefreshButton(isRefreshing, onRefresh)
+                Spacer(Modifier.width(6.dp))
                 Box {
                     Surface(
                         onClick = { menu = true },
@@ -432,6 +434,7 @@ private fun SubscriptionCard(
             }
 
             // 2. Срок действия и сколько дней осталось
+            Spacer(Modifier.height(4.dp))
             Row(Modifier.padding(end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     expiryLine(usage?.expire ?: 0), color = UnlockColors.TextSecondary, fontSize = 12.sp,
@@ -449,9 +452,8 @@ private fun SubscriptionCard(
                     usage.total > 0 -> "${formatBytes(usage.used)} / ${formatBytes(usage.total)}"
                     else -> "${formatBytes(usage.used)} / ∞"
                 }
-                MiniStat("Трафик", traffic, Modifier.weight(1.6f))
-                MiniStat("Локации", subscription.servers.size.toString(), Modifier.weight(0.9f))
-                MiniStat("Обновлено", updatedAgo(subscription.updatedAt), Modifier.weight(1.2f))
+                MiniStat("Трафик", traffic, Modifier.weight(1.4f))
+                MiniStat("Обновлено", updatedAgo(subscription.updatedAt), Modifier.weight(1f))
             }
 
             if (usage != null && usage.total > 0) {
@@ -465,16 +467,13 @@ private fun SubscriptionCard(
                 )
             }
 
-            // 4. Сообщение из Remnawave (заголовок announce) — мелко, до двух строк
+            // 4. Сообщение из Remnawave (заголовок announce) — мелко, но целиком
             subscription.announce?.let {
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.padding(end = 6.dp), verticalAlignment = Alignment.Top) {
                     Box(Modifier.padding(top = 5.dp).size(5.dp).background(UnlockColors.Primary, CircleShape))
                     Spacer(Modifier.width(6.dp))
-                    Text(
-                        it, fontSize = 11.sp, lineHeight = 14.sp, color = UnlockColors.TextSecondary,
-                        maxLines = 2, overflow = TextOverflow.Ellipsis,
-                    )
+                    Text(it, fontSize = 10.5.sp, lineHeight = 13.sp, color = UnlockColors.TextSecondary)
                 }
             }
         }

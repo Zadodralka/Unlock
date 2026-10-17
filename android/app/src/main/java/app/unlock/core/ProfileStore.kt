@@ -7,6 +7,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.unlock.vpn.UnlockVpnService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.Socket
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.io.File
@@ -117,31 +122,46 @@ class ProfileStore(private val context: Context) {
 
     /** Пинг одного сервера — для плашки «Пинг» на главном экране. */
     suspend fun ping(server: ServerNode) {
-        val result = withContext(Dispatchers.IO) {
-            XrayCore.prepareAppProcess()
-            runCatching { XrayCore.ping(listOf(server.outboundJson)) }.getOrNull()?.firstOrNull()
-        }
-        pings[server.id] = if (result?.success == true) result.delay else -1
+        pings[server.id] = withContext(Dispatchers.IO) { measurePing(server) }
     }
 
-    /** Пингуем пачками по 5 (ограничение libXray). */
+    /** Пингуем все серверы параллельно (до 8 одновременно), результаты — по мере готовности. */
     suspend fun pingAll() {
         if (isPinging) return
         isPinging = true
         pings.clear()
         try {
-            for (chunk in subscriptions.flatMap { it.servers }.chunked(5)) {
-                val results = withContext(Dispatchers.IO) {
-                    XrayCore.prepareAppProcess()
-                    runCatching { XrayCore.ping(chunk.map { it.outboundJson }) }.getOrDefault(emptyList())
-                }
-                chunk.zip(results).forEach { (server, result) ->
-                    pings[server.id] = if (result.success) result.delay else -1
+            coroutineScope {
+                val io = Dispatchers.IO.limitedParallelism(8)
+                for (server in subscriptions.flatMap { it.servers }) {
+                    launch { pings[server.id] = withContext(io) { measurePing(server) } }
                 }
             }
         } finally {
             isPinging = false
         }
+    }
+
+    /**
+     * TCP-пинг: время установки TCP-соединения с адресом и портом сервера
+     * (лучшее из двух попыток; DNS резолвится заранее и в замер не входит).
+     * Приложение исключено из VPN, поэтому соединение идёт напрямую.
+     * Hysteria работает по UDP — TCP-порта у неё нет, для неё меряем через ядро.
+     */
+    private fun measurePing(server: ServerNode): Int {
+        if (server.protocol.startsWith("hysteria")) {
+            XrayCore.prepareAppProcess()
+            val result = runCatching { XrayCore.ping(listOf(server.outboundJson)) }.getOrNull()?.firstOrNull()
+            return if (result?.success == true) result.delay else -1
+        }
+        return runCatching {
+            val address = InetAddress.getByName(server.address)
+            (1..2).minOf {
+                val start = System.nanoTime()
+                Socket().use { socket -> socket.connect(InetSocketAddress(address, server.port), 3000) }
+                ((System.nanoTime() - start) / 1_000_000).toInt()
+            }
+        }.getOrDefault(-1)
     }
 
     private suspend fun load(subscription: Subscription): Subscription {
