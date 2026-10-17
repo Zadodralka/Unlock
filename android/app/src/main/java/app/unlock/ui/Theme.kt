@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.sp
 /** Фирменная палитра. Интерфейс всегда тёмный — так выглядят современные VPN-клиенты. */
 object UnlockColors {
     val BackgroundTop = Color(0xFF171C38)
-    val Background = Color(0xFF0A0E1A)
+    val Background = Color(0xFF050914)
     val Surface = Color(0xFF141A2E)
     val SurfaceHigh = Color(0xFF1C233B)
     val Outline = Color(0x1AFFFFFF)

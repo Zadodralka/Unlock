@@ -1,15 +1,24 @@
 package app.unlock.ui
 
 import android.content.Intent
+import android.net.TrafficStats
 import android.net.Uri
-import android.text.format.Formatter
+import android.os.Process
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +32,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
@@ -31,13 +43,11 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -45,6 +55,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -55,26 +66,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.unlock.R
 import app.unlock.core.ProfileStore
 import app.unlock.core.ServerNode
 import app.unlock.core.Subscription
 import app.unlock.vpn.VpnState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 /**
- * Главный экран: шапка, карточка подписки, большая кнопка подключения
- * и карточка текущего сервера, по нажатию — шторка со списком серверов.
+ * Главный экран сверху вниз: шапка, карточка подписки, выбор локации,
+ * кнопка подключения со статусом, плашки «Пинг» и «Скорость».
  */
 @Composable
 fun HomeScreen(
@@ -104,60 +118,81 @@ fun HomeScreen(
     val subscription = selected?.let { s -> store.subscriptions.firstOrNull { s in it.servers } }
         ?: store.subscriptions.firstOrNull { it.url != null }
 
-    Box(Modifier.fillMaxSize().background(UnlockColors.ScreenBrush)) {
-        Column(
-            Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            TopBar(onAdd = { showAdd = true }, onSettings = { showSettings = true })
+    // Пинг выбранного сервера — при открытии, смене сервера и после подключения
+    LaunchedEffect(selected?.id, vpnState.status == VpnState.Status.CONNECTED) {
+        if (selected != null && !store.isPinging) store.ping(selected)
+    }
 
-            if (subscription != null && subscription.url != null) {
+    // Без явного цвета текст вне карточек был бы чёрным на тёмном фоне
+    CompositionLocalProvider(LocalContentColor provides UnlockColors.TextPrimary) {
+        Box(Modifier.fillMaxSize().background(UnlockColors.ScreenBrush)) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                TopBar(onAdd = { showAdd = true }, onSettings = { showSettings = true })
                 Spacer(Modifier.height(8.dp))
-                SubscriptionCard(
-                    subscription = subscription,
-                    isRefreshing = subscription.id in store.refreshing,
-                    onRefresh = {
-                        scope.launch {
-                            runCatching { store.refresh(subscription.id) }
-                                .onSuccess { showMessage("Подписка обновлена") }
-                                .onFailure { showMessage(it.message ?: "Не удалось обновить") }
-                        }
-                    },
-                    onDelete = { store.delete(subscription.id) },
+
+                if (subscription != null && subscription.url != null) {
+                    SubscriptionCard(
+                        subscription = subscription,
+                        isRefreshing = subscription.id in store.refreshing,
+                        onRefresh = {
+                            scope.launch {
+                                runCatching { store.refresh(subscription.id) }
+                                    .onSuccess { showMessage("Подписка обновлена") }
+                                    .onFailure { showMessage(it.message ?: "Не удалось обновить") }
+                            }
+                        },
+                        onDelete = { store.delete(subscription.id) },
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+
+                if (selected != null) {
+                    LocationCard(selected) { showServers = true }
+                } else {
+                    Button(
+                        onClick = { showAdd = true },
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = RoundedCornerShape(18.dp),
+                    ) {
+                        Icon(Icons.Default.Add, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Добавить подписку", fontSize = 16.sp)
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+                ConnectButton(vpnState.status, onToggle)
+                StatusBlock(vpnState)
+                Spacer(Modifier.height(24.dp))
+
+                StatsRow(
+                    ping = selected?.let { store.pings[it.id] },
+                    pinging = store.isPinging,
+                    connected = vpnState.status == VpnState.Status.CONNECTED,
+                    onPing = { selected?.let { scope.launch { store.ping(it) } } },
+                )
+                Spacer(Modifier.height(20.dp))
+            }
+
+            SnackbarHost(
+                snackbar,
+                Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp),
+            ) { data ->
+                Snackbar(
+                    data,
+                    shape = RoundedCornerShape(16.dp),
+                    containerColor = UnlockColors.SurfaceHigh,
+                    contentColor = UnlockColors.TextPrimary,
                 )
             }
-
-            Spacer(Modifier.weight(1f))
-            ConnectButton(vpnState.status, onToggle)
-            StatusBlock(vpnState)
-            Spacer(Modifier.weight(1f))
-
-            if (selected != null) {
-                CurrentServerCard(selected, store.pings[selected.id]) { showServers = true }
-            } else {
-                Button(
-                    onClick = { showAdd = true },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(18.dp),
-                ) {
-                    Icon(Icons.Default.Add, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Добавить подписку", fontSize = 16.sp)
-                }
-            }
-            Spacer(Modifier.height(20.dp))
-        }
-
-        SnackbarHost(
-            snackbar,
-            Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp),
-        ) { data ->
-            Snackbar(
-                data,
-                shape = RoundedCornerShape(16.dp),
-                containerColor = UnlockColors.SurfaceHigh,
-                contentColor = UnlockColors.TextPrimary,
-            )
         }
     }
 
@@ -184,20 +219,28 @@ private fun TopBar(onAdd: () -> Unit, onSettings: () -> Unit) {
         Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Логотип из биллинга: щит на тёмном круге
         Box(
             Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(11.dp))
-                .background(Brush.linearGradient(listOf(Color(0xFF9A8CFF), Color(0xFF4A37D6)))),
+                .size(38.dp)
+                .background(Color(0xFF1B1B1D), CircleShape)
+                .border(1.dp, UnlockColors.Outline, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            LockGlyph(Modifier.size(20.dp))
+            Image(painterResource(R.drawable.ic_logo), null, Modifier.size(22.dp))
         }
         Spacer(Modifier.width(10.dp))
-        Text("Unlock", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-        RoundIconButton(onAdd) { Icon(Icons.Default.Add, "Добавить") }
+        Text(
+            "Unlockless",
+            color = UnlockColors.TextPrimary,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.3).sp,
+            modifier = Modifier.weight(1f),
+        )
+        RoundIconButton(onAdd) { Icon(Icons.Default.Add, "Добавить", tint = UnlockColors.TextPrimary) }
         Spacer(Modifier.width(8.dp))
-        RoundIconButton(onSettings) { Icon(Icons.Default.Settings, "Настройки") }
+        RoundIconButton(onSettings) { Icon(Icons.Default.Settings, "Настройки", tint = UnlockColors.TextPrimary) }
     }
 }
 
@@ -205,7 +248,7 @@ private fun TopBar(onAdd: () -> Unit, onSettings: () -> Unit) {
 private fun RoundIconButton(onClick: () -> Unit, content: @Composable () -> Unit) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
+        shape = CircleShape,
         color = UnlockColors.Surface,
         border = BorderStroke(1.dp, UnlockColors.Outline),
         modifier = Modifier.size(44.dp),
@@ -214,6 +257,7 @@ private fun RoundIconButton(onClick: () -> Unit, content: @Composable () -> Unit
     }
 }
 
+/** Провайдер, сколько дней осталось, круглая кнопка обновления, сообщение панели мелко. */
 @Composable
 private fun SubscriptionCard(
     subscription: Subscription,
@@ -228,30 +272,34 @@ private fun SubscriptionCard(
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = UnlockColors.Surface,
+        contentColor = UnlockColors.TextPrimary,
         border = BorderStroke(1.dp, UnlockColors.Outline),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 16.dp)) {
+        Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f).padding(top = 10.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text("ПОДПИСКА", style = SectionLabel)
+                    Spacer(Modifier.height(2.dp))
                     Text(
-                        subscription.title, style = MaterialTheme.typography.titleMedium,
+                        subscription.title, fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
-                    expiryText(usage?.expire ?: 0)?.let { (text, color) ->
-                        Text(text, color = color, fontSize = 13.sp)
-                    }
                 }
-                if (isRefreshing) {
-                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                } else {
-                    IconButton(onClick = onRefresh) {
-                        Icon(Icons.Default.Refresh, "Обновить", tint = UnlockColors.TextSecondary)
-                    }
-                }
+                Spacer(Modifier.width(8.dp))
+                DaysLeftBadge(usage?.expire ?: 0)
+                Spacer(Modifier.width(8.dp))
+                RefreshButton(isRefreshing, onRefresh)
                 Box {
-                    IconButton(onClick = { menu = true }) {
-                        Icon(Icons.Default.MoreVert, "Меню", tint = UnlockColors.TextSecondary)
+                    Surface(
+                        onClick = { menu = true },
+                        shape = CircleShape,
+                        color = Color.Transparent,
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.MoreVert, "Меню", tint = UnlockColors.TextSecondary)
+                        }
                     }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         subscription.url?.let { url ->
@@ -277,52 +325,64 @@ private fun SubscriptionCard(
                 }
             }
 
-            if (usage != null) {
-                Spacer(Modifier.height(10.dp))
-                val used = Formatter.formatShortFileSize(context, usage.used)
-                if (usage.total > 0) {
-                    val fraction = (usage.used.toFloat() / usage.total).coerceIn(0f, 1f)
-                    LinearProgressIndicator(
-                        progress = { fraction },
-                        modifier = Modifier.fillMaxWidth().padding(end = 12.dp).height(6.dp).clip(RoundedCornerShape(3.dp)),
-                        color = if (fraction > 0.9f) UnlockColors.Danger else UnlockColors.Primary,
-                        trackColor = UnlockColors.SurfaceHigh,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "$used из ${Formatter.formatShortFileSize(context, usage.total)}",
-                        color = UnlockColors.TextSecondary, fontSize = 13.sp,
-                    )
-                } else {
-                    Text("Израсходовано $used · безлимит", color = UnlockColors.TextSecondary, fontSize = 13.sp)
-                }
+            if (usage != null && usage.total > 0) {
+                Spacer(Modifier.height(12.dp))
+                val fraction = (usage.used.toFloat() / usage.total).coerceIn(0f, 1f)
+                LinearProgressIndicator(
+                    progress = { fraction },
+                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
+                    color = if (fraction > 0.9f) UnlockColors.Danger else UnlockColors.Primary,
+                    trackColor = UnlockColors.SurfaceHigh,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "${formatBytes(usage.used)} из ${formatBytes(usage.total)}",
+                    color = UnlockColors.TextSecondary, fontSize = 12.sp,
+                )
             }
 
+            // Сообщение из Remnawave (заголовок announce) — мелко, одной-двумя строками
             subscription.announce?.let {
                 Spacer(Modifier.height(10.dp))
-                Text(
-                    it, fontSize = 13.sp, color = UnlockColors.TextPrimary,
-                    modifier = Modifier
-                        .padding(end = 12.dp)
+                Row(
+                    Modifier
                         .fillMaxWidth()
-                        .background(UnlockColors.Primary.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
-                        .padding(10.dp),
-                )
+                        .background(UnlockColors.SurfaceHigh, RoundedCornerShape(10.dp))
+                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(6.dp).background(UnlockColors.Primary, CircleShape))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        it, fontSize = 12.sp, lineHeight = 16.sp, color = UnlockColors.TextSecondary,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }
 }
 
-/** «Осталось 12 дней» — цвет темнеет к концу срока. */
-private fun expiryText(expire: Long): Pair<String, Color>? {
-    if (expire <= 0) return null
-    val days = TimeUnit.MILLISECONDS.toDays(expire * 1000 - System.currentTimeMillis())
-    return when {
-        days < 0 -> "Подписка истекла" to UnlockColors.Danger
-        days == 0L -> "Истекает сегодня" to UnlockColors.Danger
-        days <= 3 -> "Осталось ${days} ${daysWord(days)}" to UnlockColors.Warning
-        else -> "Осталось ${days} ${daysWord(days)}" to UnlockColors.TextSecondary
+/** «12 дней» в таблетке; жёлтая за 3 дня до конца, красная — после. */
+@Composable
+private fun DaysLeftBadge(expire: Long) {
+    val (text, color) = if (expire <= 0) {
+        "∞" to UnlockColors.Accent
+    } else {
+        val days = TimeUnit.MILLISECONDS.toDays(expire * 1000 - System.currentTimeMillis())
+        when {
+            days < 0 -> "истекла" to UnlockColors.Danger
+            days == 0L -> "сегодня" to UnlockColors.Danger
+            days <= 3 -> "$days ${daysWord(days)}" to UnlockColors.Warning
+            else -> "$days ${daysWord(days)}" to UnlockColors.Accent
+        }
     }
+    Text(
+        text, color = color, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+        modifier = Modifier
+            .background(color.copy(alpha = 0.14f), RoundedCornerShape(50))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+    )
 }
 
 private fun daysWord(n: Long): String {
@@ -336,19 +396,75 @@ private fun daysWord(n: Long): String {
     }
 }
 
+/** Круглая кнопка со стрелкой; крутится, пока подписка обновляется. */
+@Composable
+private fun RefreshButton(isRefreshing: Boolean, onClick: () -> Unit) {
+    val transition = rememberInfiniteTransition(label = "refresh")
+    val angle by transition.animateFloat(
+        0f, 360f, infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Restart), label = "angle",
+    )
+    Surface(
+        onClick = { if (!isRefreshing) onClick() },
+        shape = CircleShape,
+        color = UnlockColors.SurfaceHigh,
+        border = BorderStroke(1.dp, UnlockColors.Outline),
+        modifier = Modifier.size(36.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                Icons.Default.Refresh, "Обновить подписку",
+                tint = UnlockColors.TextPrimary,
+                modifier = Modifier.size(20.dp).rotate(if (isRefreshing) angle else 0f),
+            )
+        }
+    }
+}
+
+/** Выбранная локация; нажатие открывает список всех локаций подписки. */
+@Composable
+private fun LocationCard(server: ServerNode, onClick: () -> Unit) {
+    val title = splitFlag(server.name)
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(22.dp),
+        color = UnlockColors.Surface,
+        contentColor = UnlockColors.TextPrimary,
+        border = BorderStroke(1.dp, UnlockColors.Outline),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            FlagBadge(title, 46.dp)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("ЛОКАЦИЯ", style = SectionLabel)
+                Text(title.name, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Row(
+                Modifier
+                    .background(UnlockColors.Primary.copy(alpha = 0.16f), RoundedCornerShape(50))
+                    .padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Сменить", color = UnlockColors.Primary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight, null,
+                    tint = UnlockColors.Primary, modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun StatusBlock(state: VpnState) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 8.dp)) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         AnimatedContent(
             targetState = state.status,
             transitionSpec = { fadeIn() togetherWith fadeOut() },
             label = "status",
         ) { status ->
             Text(
-                when (status) {
-                    VpnState.Status.CONNECTED -> "Защищено"
-                    else -> status.title
-                },
+                if (status == VpnState.Status.CONNECTED) "Защищено" else status.title,
                 style = MaterialTheme.typography.headlineMedium,
                 color = when (status) {
                     VpnState.Status.CONNECTED -> UnlockColors.Accent
@@ -390,31 +506,107 @@ private fun ConnectedTimer(since: Long) {
     )
 }
 
+/**
+ * Пинг выбранного сервера и текущая скорость туннеля. Скорость считаем по трафику
+ * нашего UID: через него идут все сокеты ядра Xray, то есть весь проксируемый трафик.
+ */
 @Composable
-private fun CurrentServerCard(server: ServerNode, ping: Int?, onClick: () -> Unit) {
-    val title = splitFlag(server.name)
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(22.dp),
-        color = UnlockColors.Surface,
-        border = BorderStroke(1.dp, UnlockColors.Outline),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            FlagBadge(title, 48.dp)
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Текущая локация", style = SectionLabel)
-                Text(
-                    title.name, style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                )
+private fun StatsRow(ping: Int?, pinging: Boolean, connected: Boolean, onPing: () -> Unit) {
+    var down by remember { mutableLongStateOf(0L) }
+    var up by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(connected) {
+        down = 0
+        up = 0
+        if (!connected) return@LaunchedEffect
+        val uid = Process.myUid()
+        var lastRx = TrafficStats.getUidRxBytes(uid)
+        var lastTx = TrafficStats.getUidTxBytes(uid)
+        var lastTime = System.nanoTime()
+        while (true) {
+            delay(1000)
+            val rx = TrafficStats.getUidRxBytes(uid)
+            val tx = TrafficStats.getUidTxBytes(uid)
+            val now = System.nanoTime()
+            val seconds = (now - lastTime) / 1e9
+            if (rx >= 0 && tx >= 0 && seconds > 0) {
+                down = ((rx - lastRx) / seconds).toLong().coerceAtLeast(0)
+                up = ((tx - lastTx) / seconds).toLong().coerceAtLeast(0)
             }
-            ping?.let { PingBadge(it) }
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight, "Выбрать сервер",
-                tint = UnlockColors.TextSecondary, modifier = Modifier.padding(start = 4.dp),
+            lastRx = rx
+            lastTx = tx
+            lastTime = now
+        }
+    }
+
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        StatTile(
+            label = "ПИНГ",
+            value = when {
+                pinging && ping == null -> "…"
+                ping == null -> "—"
+                ping < 0 -> "нет ответа"
+                else -> "$ping мс"
+            },
+            valueColor = ping?.let(::pingColor) ?: UnlockColors.TextPrimary,
+            onClick = onPing,
+            modifier = Modifier.weight(1f),
+        )
+        StatTile(
+            label = "↓ ЗАГРУЗКА",
+            value = if (connected) formatSpeed(down) else "—",
+            modifier = Modifier.weight(1f),
+        )
+        StatTile(
+            label = "↑ ОТДАЧА",
+            value = if (connected) formatSpeed(up) else "—",
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun StatTile(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    valueColor: Color = UnlockColors.TextPrimary,
+    onClick: (() -> Unit)? = null,
+) {
+    val content: @Composable () -> Unit = {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 12.dp)) {
+            Text(label, style = SectionLabel, fontSize = 11.sp, maxLines = 1)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                value, color = valueColor, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
     }
+    val shape = RoundedCornerShape(18.dp)
+    if (onClick != null) {
+        Surface(
+            onClick = onClick, shape = shape, color = UnlockColors.Surface,
+            border = BorderStroke(1.dp, UnlockColors.Outline), modifier = modifier, content = content,
+        )
+    } else {
+        Surface(
+            shape = shape, color = UnlockColors.Surface,
+            border = BorderStroke(1.dp, UnlockColors.Outline), modifier = modifier, content = content,
+        )
+    }
+}
+
+/** Байты/с -> «12.4 Мбит/с» или «850 Кбит/с». */
+private fun formatSpeed(bytesPerSecond: Long): String {
+    val bits = bytesPerSecond * 8.0
+    return when {
+        bits >= 1_000_000 -> String.format(Locale.US, "%.1f Мбит/с", bits / 1_000_000)
+        else -> String.format(Locale.US, "%.0f Кбит/с", bits / 1_000)
+    }
+}
+
+private fun formatBytes(bytes: Long): String {
+    val gb = bytes / 1_073_741_824.0
+    return if (gb >= 1) String.format(Locale.US, "%.1f ГБ", gb)
+    else String.format(Locale.US, "%.0f МБ", bytes / 1_048_576.0)
 }

@@ -115,6 +115,14 @@ class ProfileStore(private val context: Context) {
 
     // endregion
 
+    /** Пинг одного сервера — для плашки «Пинг» на главном экране. */
+    suspend fun ping(server: ServerNode) {
+        val result = withContext(Dispatchers.IO) {
+            runCatching { XrayCore.ping(listOf(server.outboundJson)) }.getOrNull()?.firstOrNull()
+        }
+        pings[server.id] = if (result?.success == true) result.delay else -1
+    }
+
     /** Пингуем пачками по 5 (ограничение libXray). */
     suspend fun pingAll() {
         if (isPinging) return

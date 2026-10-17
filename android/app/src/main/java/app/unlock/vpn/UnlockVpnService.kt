@@ -61,7 +61,7 @@ class UnlockVpnService : VpnService() {
             val outbound = JSONObject(file.readText())
 
             val builder = Builder()
-                .setSession("Unlock")
+                .setSession("Unlockless")
                 .setMtu(TunnelConfig.MTU)
                 .addAddress(TunnelConfig.TUN_ADDRESS, TunnelConfig.TUN_PREFIX)
                 .addRoute("0.0.0.0", 0)
@@ -121,9 +121,9 @@ class UnlockVpnService : VpnService() {
             PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = Notification.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_logo)
             .setColor(getColor(R.color.brand))
-            .setContentTitle("Unlock подключён")
+            .setContentTitle("Unlockless подключён")
             .setContentText(serverName ?: "VPN")
             .setContentIntent(openAppIntent())
             .setOngoing(true)

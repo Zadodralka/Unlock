@@ -1,5 +1,6 @@
 package app.unlock.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -60,6 +61,8 @@ import app.unlock.core.ProfileStore
 import app.unlock.core.ServerNode
 import app.unlock.core.XrayCore
 import app.unlock.vpn.UnlockVpnService
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -180,7 +183,7 @@ private fun ServerItem(
     }
 }
 
-/** Добавление подписки или серверов: вставить из буфера или ввести вручную. */
+/** Добавление подписки или серверов: QR-код, буфер обмена или ввод вручную. */
 @Composable
 fun AddSheet(onAdd: suspend (String) -> Unit, onAdded: () -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
@@ -189,11 +192,51 @@ fun AddSheet(onAdd: suspend (String) -> Unit, onAdded: () -> Unit, onDismiss: ()
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
+    fun submit(text: String) {
+        loading = true
+        error = null
+        scope.launch {
+            runCatching { onAdd(text) }
+                .onSuccess { onAdded(); onDismiss() }
+                .onFailure { error = it.message ?: "Не удалось добавить" }
+            loading = false
+        }
+    }
+
+    // Отсканированную ссылку сразу добавляем
+    val scanner = rememberLauncherForActivityResult(ScanContract()) { result ->
+        result.contents?.takeIf { it.isNotBlank() }?.let { scanned ->
+            input = scanned
+            submit(scanned)
+        }
+    }
+
     UnlockSheet(onDismiss) {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 20.dp).navigationBarsPadding().imePadding().padding(bottom = 20.dp),
         ) {
             Text("Добавить подписку", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = {
+                    scanner.launch(
+                        ScanOptions()
+                            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                            .setPrompt("Наведите камеру на QR-код подписки")
+                            .setBeepEnabled(false)
+                            .setOrientationLocked(false),
+                    )
+                },
+                enabled = !loading,
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+            ) {
+                QrGlyph(Modifier.size(20.dp))
+                Spacer(Modifier.width(10.dp))
+                Text("Сканировать QR-код")
+            }
+            Spacer(Modifier.height(16.dp))
+            Text("ИЛИ ВСТАВЬТЕ ССЫЛКУ", style = SectionLabel)
             Spacer(Modifier.height(6.dp))
             Text(
                 "Ссылка подписки (https://…) или серверы vless://, vmess://, trojan://, ss://, hy2:// — по одному на строку.",
@@ -230,15 +273,7 @@ fun AddSheet(onAdd: suspend (String) -> Unit, onAdded: () -> Unit, onDismiss: ()
                     modifier = Modifier.weight(1f).height(52.dp),
                 ) { Text("Вставить") }
                 Button(
-                    onClick = {
-                        loading = true
-                        scope.launch {
-                            runCatching { onAdd(input) }
-                                .onSuccess { onAdded(); onDismiss() }
-                                .onFailure { error = it.message ?: "Не удалось добавить" }
-                            loading = false
-                        }
-                    },
+                    onClick = { submit(input) },
                     enabled = input.isNotBlank() && !loading,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.weight(1f).height(52.dp),

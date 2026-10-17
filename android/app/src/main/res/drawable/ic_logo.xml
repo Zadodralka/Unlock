@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Тот же щит, обрезанный под 24dp: для шапки и уведомления -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="36" android:viewportHeight="36">
+    <group android:translateX="-36" android:translateY="-36">
+        <path
+            android:strokeColor="#FFFFFF" android:strokeWidth="3"
+            android:strokeLineJoin="round" android:strokeLineCap="round"
+            android:fillColor="#00000000"
+            android:pathData="M54,38.2 L68.6,43.2 L68.6,54 C68.6,62.8 62.1,67.5 54,69.9 C45.9,67.5 39.4,62.8 39.4,54 L39.4,43.2 Z" />
+        <path
+            android:strokeColor="#FFFFFF" android:strokeWidth="2.7"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000"
+            android:pathData="M54,53.3 L58.7,58 L54,62.7 L49.3,58 Z" />
+    </group>
+</vector>

@@ -102,24 +102,18 @@ fun PowerIcon(modifier: Modifier, color: Color = Color.White) {
     }
 }
 
-/** Логотип: открытый замок. */
+/** Значок QR-кода: три угловых квадрата и точки. */
 @Composable
-fun LockGlyph(modifier: Modifier, color: Color = Color.White) {
+fun QrGlyph(modifier: Modifier, color: Color = Color.White) {
     Canvas(modifier) {
-        val w = size.width
-        val h = size.height
-        val stroke = w * 0.12f
-        drawRoundRect(
-            color = color,
-            topLeft = Offset(w * 0.18f, h * 0.45f),
-            size = Size(w * 0.64f, h * 0.45f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.1f),
-        )
-        drawArc(
-            color = color, startAngle = 180f, sweepAngle = 160f, useCenter = false,
-            topLeft = Offset(w * 0.3f, h * 0.1f), size = Size(w * 0.4f, h * 0.5f),
-            style = Stroke(width = stroke, cap = StrokeCap.Round),
-        )
+        val u = size.minDimension / 7f
+        val stroke = Stroke(width = u * 0.9f)
+        for ((x, y) in listOf(0f to 0f, 4f to 0f, 0f to 4f)) {
+            drawRect(color, Offset(x * u + u * 0.45f, y * u + u * 0.45f), Size(u * 2.1f, u * 2.1f), style = stroke)
+        }
+        drawRect(color, Offset(4.2f * u, 4.2f * u), Size(u, u))
+        drawRect(color, Offset(5.8f * u, 5.8f * u), Size(u * 1.2f, u * 1.2f))
+        drawRect(color, Offset(5.8f * u, 4.2f * u), Size(u * 1.2f, u))
     }
 }
 
