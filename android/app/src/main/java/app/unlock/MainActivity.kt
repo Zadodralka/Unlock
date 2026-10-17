@@ -9,13 +9,15 @@ import android.net.Uri
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
-import android.os.SystemClock
-import android.animation.AnimatorSet
-import android.animation.ObjectAnimator
-import android.view.View
-import android.view.animation.AccelerateInterpolator
-import androidx.core.animation.doOnEnd
-import androidx.core.splashscreen.SplashScreen
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -27,10 +29,11 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import app.unlock.core.ServerNode
 import app.unlock.ui.HomeScreen
+import app.unlock.ui.IntroScreen
+import app.unlock.ui.UnlockColors
 import app.unlock.ui.UnlockTheme
 import app.unlock.vpn.UnlockVpnService
 import app.unlock.vpn.VpnState
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -55,13 +58,15 @@ class MainActivity : ComponentActivity() {
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
-    /** Запустить появление интерфейса — когда заставка начинает уходить. */
-    private val playIntro = mutableStateOf(false)
+    /** Показывать свой экран загрузки (при первом запуске, не после поворота). */
+    private val showIntro = mutableStateOf(true)
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val splash = installSplashScreen()
+        // Системная заставка — только фирменный фон, без логотипа: дальше сразу
+        // идёт свой анимированный экран загрузки (IntroScreen)
+        installSplashScreen()
         super.onCreate(savedInstanceState)
-        setupSplash(splash, restored = savedInstanceState != null)
+        if (savedInstanceState != null) showIntro.value = false
         // Интерфейс всегда тёмный — светлые значки в системных панелях
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
@@ -75,53 +80,28 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             UnlockTheme {
-                HomeScreen(
-                    store = store,
-                    vpnState = vpnState.value,
-                    importError = importError.value,
-                    onDismissImportError = { importError.value = null },
-                    onToggle = ::toggle,
-                    onSelect = ::select,
-                    playIntro = playIntro.value,
-                )
+                Box(Modifier.fillMaxSize().background(UnlockColors.Background)) {
+                    // Главный экран под заставкой: его элементы выезжают каскадом,
+                    // когда заставка начинает уходить
+                    HomeScreen(
+                        store = store,
+                        vpnState = vpnState.value,
+                        importError = importError.value,
+                        onDismissImportError = { importError.value = null },
+                        onToggle = ::toggle,
+                        onSelect = ::select,
+                        playIntro = !showIntro.value,
+                    )
+                    // Уход заставки: увеличивается и растворяется
+                    AnimatedVisibility(
+                        visible = showIntro.value,
+                        enter = EnterTransition.None,
+                        exit = fadeOut(tween(550)) + scaleOut(tween(550), targetScale = 1.12f),
+                    ) {
+                        IntroScreen(onFinished = { showIntro.value = false })
+                    }
+                }
             }
-        }
-    }
-
-    /**
-     * Заставка: на Android 12+ щит прорисовывается (avd_splash) — даём анимации
-     * доиграть, затем логотип увеличивается и растворяется, а интерфейс выезжает.
-     */
-    private fun setupSplash(splash: SplashScreen, restored: Boolean) {
-        if (restored) {
-            // Поворот экрана и т.п. — заставки нет, интерфейс сразу на месте
-            playIntro.value = true
-            return
-        }
-        val shownAt = SystemClock.uptimeMillis()
-        val holdMillis = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 850L else 300L
-        splash.setKeepOnScreenCondition { SystemClock.uptimeMillis() - shownAt < holdMillis }
-
-        splash.setOnExitAnimationListener { provider ->
-            playIntro.value = true
-            val icon = provider.iconView
-            AnimatorSet().apply {
-                playTogether(
-                    ObjectAnimator.ofFloat(icon, View.SCALE_X, 1f, 1.8f),
-                    ObjectAnimator.ofFloat(icon, View.SCALE_Y, 1f, 1.8f),
-                    ObjectAnimator.ofFloat(icon, View.ALPHA, 1f, 0f),
-                    ObjectAnimator.ofFloat(provider.view, View.ALPHA, 1f, 0f),
-                )
-                duration = 420
-                interpolator = AccelerateInterpolator()
-                doOnEnd { provider.remove() }
-                start()
-            }
-        }
-        // Страховка: если система не показала заставку, всё равно показать интерфейс
-        lifecycleScope.launch {
-            delay(holdMillis + 1200)
-            playIntro.value = true
         }
     }
 
