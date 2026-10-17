@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -100,7 +101,12 @@ fun IntroScreen(onFinished: () -> Unit) {
     )
 
     Box(
-        Modifier.fillMaxSize().background(UnlockColors.ScreenBrush),
+        // Начинаем с того же сплошного цвета, что у системной заставки, и плавно
+        // проявляем градиент — без скачка цвета при переходе
+        Modifier
+            .fillMaxSize()
+            .background(UnlockColors.Background)
+            .drawBehind { drawRect(UnlockColors.ScreenBrush, alpha = glow.value) },
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {

@@ -36,8 +36,12 @@ android {
 
     buildTypes {
         debug { signingConfig = signingConfigs.getByName("debug") }
+        // Раздаём release: R8 и отсутствие отладки заметно ускоряют холодный старт
+        // (тёмный экран до заставки). Подпись та же — обновления встают поверх.
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -70,6 +74,8 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.core:core-splashscreen:1.0.1")
+    // Ставит готовые профили Compose: Android компилирует код запуска заранее
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     // Сканер QR: Google Code Scanner (через Play Services), ZXing — запасной
     // и для распознавания QR с картинки из галереи
